@@ -1,53 +1,66 @@
 import chess
-from ai.smart_ai import SmartAI
+from ai import SmartAI
+from util_function import print_pipelines, get_board_pipelines, print_board, get_game_result
 import torch
-
-def print_board(board):
-    # 打印Unicode棋盘
-    print(board.unicode(invert_color=False))
+import time
 
 def main():
+    # 初始化棋盘和AI
     board = chess.Board()
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    black_ai = SmartAI(chess.BLACK, model_file='model/model.pth', device=device, mode='search')
-    white_ai = SmartAI(chess.WHITE, model_file='model/model.pth', device=device, mode='search')
+    
+    # 初始化双方AI（当前均为随机模式）
+    black_ai = SmartAI(
+        color=chess.BLACK,
+        depth=3,
+        device=device,
+        mode='random'
+    )
+    
+    white_ai = SmartAI(
+        color=chess.WHITE,
+        depth=3,
+        device=device,
+        mode='random'
+    )
 
-    print("初始棋盘:")
+    print("国际象棋对弈开始！（Chess-V 0.1）")
     print_board(board)
-    print("\n开始游戏...\n")
 
     while not board.is_game_over():
-        current_color = board.turn
-        ai_player = white_ai if current_color == chess.WHITE else black_ai
-        move = ai_player.choose_move(board)
+        # 获取当前玩家
+        current_player = "白方" if board.turn == chess.WHITE else "黑方"
+        current_ai = white_ai if board.turn == chess.WHITE else black_ai
 
+        # AI选择走法
+        move = current_ai.choose_move(board)
         if move is None:
-            print("没有合法的走法。")
+            print("错误：没有合法走法！")
             break
 
-        san = board.san(move)
+        # 记录走法信息
+        san = board.san(move)  # 标准代数记法
+        uci = move.uci()       # UCI格式
+
+        # 执行走子
         board.push(move)
+        # time.sleep(5)
 
-        player = "White" if current_color == chess.WHITE else "Black"
-        print(f"{player} moves: {move.uci()} ({san})")
+        # 打印对局信息
+        print(f"{current_player} 走子：{uci} ({san})")
+        if board.is_check():
+            print("!! 将军 !!")
+            time.sleep(5)
         print_board(board)
-        print("\n")
+        # 执行走子后添加：
+        pipelines = get_board_pipelines(board)
+        print_pipelines(pipelines)
+        print("\n" + "="*40)
 
-    print("游戏结束！")
-    result = board.result()
-    if board.is_checkmate():
-        winner = "White" if board.turn == chess.BLACK else "Black"
-        print(f"将死，{winner} 获胜！")
-    elif board.is_stalemate():
-        print("和棋（僵局）")
-    elif board.is_insufficient_material():
-        print("和棋（兵种不足）")
-    elif board.is_seventyfive_moves():
-        print("和棋（75回合规则）")
-    elif board.is_fivefold_repetition():
-        print("和棋（五次重复）")
-    else:
-        print(f"结果: {result}")
+    # 显示最终结果
+    print("\n" + "="*40)
+    print(get_game_result(board))
+    print("="*40)
 
 if __name__ == "__main__":
     main()
